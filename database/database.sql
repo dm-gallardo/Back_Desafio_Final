@@ -7,7 +7,7 @@ CREATE DATABASE libreria;
 CREATE TABLE usuarios (
   id_usuarios SERIAL PRIMARY KEY, 
   email VARCHAR(75) NOT NULL, 
-  password VARCHAR(50) NOT NULL, 
+  password VARCHAR(1000) NOT NULL, 
   nombre VARCHAR(50) NOT NULL, 
   apellido VARCHAR(50) NOT NULL,
   admin BOOLEAN DEFAULT false
