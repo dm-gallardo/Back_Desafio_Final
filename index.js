@@ -1,8 +1,9 @@
 import express from 'express';
 import cors from 'cors';
 import jwt from 'jsonwebtoken';
-import { addUser , loginUser , getUserById} from './queries/queries.js';
+import { addUser , loginUser , getUserById , deleteUser} from './queries/queries.js';
 import dotenv from 'dotenv';
+import { pool } from './database/pool.js';
 
 dotenv.config();
 const app = express();
@@ -20,15 +21,17 @@ app.listen(PORT, async () => {
 // Middleware para verificar el JWT 
 
 const authenticateJWT = (req, res, next) => {
-  const token = req.headers['authorization'];
+  const authHeader = req.headers['authorization'];
 
-  if (!token) {
+  if (!authHeader) {
     return res.status(403).json({ message: 'Token requerido' });
   }
 
-  const tokenWithoutBearer = token.startsWith('Bearer ') ? token.slice(7) : token;
+  const token = authHeader.startsWith('Bearer ')
+    ? authHeader.slice(7)
+    : authHeader;
 
-  jwt.verify(tokenWithoutBearer, process.env.JWT_SECRET, (err, decoded) => {
+  jwt.verify(token, process.env.JWT_SECRET, (err, decoded) => {
     if (err) {
       return res.status(403).json({ message: 'Token no válido', error: err.message });
     }
@@ -36,6 +39,36 @@ const authenticateJWT = (req, res, next) => {
     req.user = decoded;
     next();
   });
+};
+
+const checkAdmin = async (req, res, next) => {
+  try {
+    const { id_usuarios } = req.user; // viene del token
+
+    if (!id_usuarios) {
+      return res.status(400).json({ message: 'Token inválido: falta el ID del usuario' });
+    }
+
+    const result = await pool.query(
+      'SELECT admin FROM usuarios WHERE id_usuarios = $1',
+      [id_usuarios]
+    );
+
+    if (result.rowCount === 0) {
+      return res.status(404).json({ message: 'Usuario no encontrado' });
+    }
+
+    const { admin } = result.rows[0];
+
+    if (!admin) {
+      return res.status(403).json({ message: 'Acceso denegado: se requieren privilegios de administrador' });
+    }
+    next();
+
+  } catch (err) {
+    console.error('Error en checkAdmin:', err);
+    return res.status(500).json({ message: 'Error interno en autenticación', error: err.message });
+  }
 };
 
 // RUTA POST
@@ -109,5 +142,29 @@ app.get('/usuarios/:id', authenticateJWT, async (req, res) => {
       res.json(user);
   } catch (error) {
       res.status(500).json({ message: error.message });
+  }
+});
+
+// Ruta DELETE
+
+app.delete('/usuarios/:id', authenticateJWT, checkAdmin, async (req, res) => {
+  const { id } = req.params;
+
+  try {
+    if (isNaN(id)) {
+      return res.status(400).json({ message: 'ID de usuario inválido' });
+    }
+
+    const result = await deleteUser(id);
+
+    if (result === 0) {
+      return res.status(404).json({ message: 'Usuario no encontrado' });
+    }
+
+    res.status(200).json({ message: 'Usuario eliminado con éxito' });
+
+  } catch (error) {
+    console.error('Error al eliminar usuario:', error);
+    res.status(500).json({ message: 'Error interno del servidor', error: error.message });
   }
 });

@@ -87,9 +87,13 @@ const loginUser = async (email, password) => {
         // Generar el token JWT
 
         const token = jwt.sign(
-            { userId: user.id, email: user.email, nombre: user.nombre }, // Información a guardar en el token
-            process.env.JWT_SECRET, //guarda en .env
-            { expiresIn: '2h' } // Tiempo de expiración del token
+        { id_usuarios: user.id_usuarios, 
+            email: user.email, 
+            nombre: user.nombre, 
+            admin: user.admin 
+        },
+            process.env.JWT_SECRET,
+            { expiresIn: '2h' }
         );
 
         return token; // Devuelve el token JWT generado
@@ -114,4 +118,18 @@ const getUserById = async (userId) => {
     }
 };
 
-export { addUser, loginUser, getUserById };
+//-------------------------------------------------------------------------------------------------------------
+
+const deleteUser = async (id_usuarios) => {
+    const query = 'DELETE FROM usuarios WHERE id_usuarios = $1';
+    const values = [id_usuarios];
+    
+    try {
+        const result = await pool.query(query, values);
+        return result.rowCount;
+    } catch (error) {
+        throw new Error('Error al eliminar el usuario: ' + error.message);
+    }
+};
+
+export { addUser, loginUser, getUserById, deleteUser };
