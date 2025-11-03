@@ -52,3 +52,14 @@ CREATE TABLE pedido_libros (
   FOREIGN KEY (pedido_id) REFERENCES pedido(id_pedido) ON DELETE CASCADE,
   FOREIGN KEY (libro_id) REFERENCES libros(id_libros) ON DELETE CASCADE
 );
+
+SELECT * FROM usuarios;
+
+INSERT INTO usuarios (id_usuarios, email, password, nombre, apellido, admin)
+VALUES 
+  (1, 'usuario1@example.com', 'password123', 'Juan', 'Pérez', false),
+  (2, 'usuario2@example.com', 'password456', 'María', 'Gómez', false);
+
+UPDATE usuarios SET admin = true WHERE id_usuarios = 1; // Dar permisos de admin a usuario existente
+
+DELETE from usuarios WHERE id_usuarios = 1; // Eliminar usuario de prueba si existe
