@@ -1,9 +1,9 @@
 import express from 'express';
 import cors from 'cors';
-import jwt from 'jsonwebtoken';
-import { addUser , loginUser , getUserById , deleteUser} from './queries/queries.js';
+import { addUser , loginUser , getUserById , deleteUser} from './queries/queriesUsuarios.js';
+import { addBook , getBookById , deleteBook, getAllBooks} from './queries/queriesLibros.js';
 import dotenv from 'dotenv';
-import { pool } from './database/pool.js';
+import { authenticateJWT , checkAdmin } from './middlewares/middleware.js';
 
 dotenv.config();
 const app = express();
@@ -17,59 +17,6 @@ app.use(express.json());
 app.listen(PORT, async () => {
   console.log(`Server is running on http://localhost:${PORT}`);
 });
-
-// Middleware para verificar el JWT 
-
-const authenticateJWT = (req, res, next) => {
-  const authHeader = req.headers['authorization'];
-
-  if (!authHeader) {
-    return res.status(403).json({ message: 'Token requerido' });
-  }
-
-  const token = authHeader.startsWith('Bearer ')
-    ? authHeader.slice(7)
-    : authHeader;
-
-  jwt.verify(token, process.env.JWT_SECRET, (err, decoded) => {
-    if (err) {
-      return res.status(403).json({ message: 'Token no válido', error: err.message });
-    }
-
-    req.user = decoded;
-    next();
-  });
-};
-
-const checkAdmin = async (req, res, next) => {
-  try {
-    const { id_usuarios } = req.user; // viene del token
-
-    if (!id_usuarios) {
-      return res.status(400).json({ message: 'Token inválido: falta el ID del usuario' });
-    }
-
-    const result = await pool.query(
-      'SELECT admin FROM usuarios WHERE id_usuarios = $1',
-      [id_usuarios]
-    );
-
-    if (result.rowCount === 0) {
-      return res.status(404).json({ message: 'Usuario no encontrado' });
-    }
-
-    const { admin } = result.rows[0];
-
-    if (!admin) {
-      return res.status(403).json({ message: 'Acceso denegado: se requieren privilegios de administrador' });
-    }
-    next();
-
-  } catch (err) {
-    console.error('Error en checkAdmin:', err);
-    return res.status(500).json({ message: 'Error interno en autenticación', error: err.message });
-  }
-};
 
 // RUTA POST
 
@@ -165,6 +112,70 @@ app.delete('/usuarios/:id', authenticateJWT, checkAdmin, async (req, res) => {
 
   } catch (error) {
     console.error('Error al eliminar usuario:', error);
+    res.status(500).json({ message: 'Error interno del servidor', error: error.message });
+  }
+});
+
+//-------------------------------------------------------------------------------------------------------------
+// rutas para libros
+
+app.post('/libros', authenticateJWT, checkAdmin, async (req, res) => {
+    const { titulo, autor, editorial, anio_publicacion, genero, descripcion, precio, url_img } = req.body;
+    const usuario_id = req.user.id_usuarios;
+    try {
+        await addBook(titulo, autor, editorial, anio_publicacion, genero, descripcion, precio, url_img, usuario_id);
+        res.status(201).json({ message: 'Libro agregado con éxito' });
+    } catch (error) {
+        res.status(400).json({ error: error.message });
+    }
+});
+
+app.get('/libros', authenticateJWT, async (req, res) => {
+    try {
+        const books = await getAllBooks();
+        res.status(200).json(books);
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+});
+
+
+app.get('/libros/:id', authenticateJWT, async (req, res) => {
+    const { id } = req.params;
+    if (isNaN(id)) {
+      return res.status(400).json({ message: 'ID inválido' });
+    }
+
+    try {
+        const book = await getBookById(id);
+        if (!book) {
+            return res.status(404).json({ message: 'Libro no encontrado' });
+        }
+
+        res.status(200).json(book);
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+});
+
+app.delete('/libros/:id', authenticateJWT, checkAdmin, async (req, res) => {
+  const { id } = req.params;
+
+  try {
+    if (isNaN(id)) {
+      return res.status(400).json({ message: 'ID de libro inválido' });
+    }
+
+    const result = await deleteBook(id);
+
+    if (result === 0) {
+      return res.status(404).json({ message: 'libro no encontrado' });
+    }
+
+    res.status(200).json({ message: 'libro eliminado con éxito' });
+
+  } catch (error) {
+    console.error('Error al eliminar libro:', error);
     res.status(500).json({ message: 'Error interno del servidor', error: error.message });
   }
 });
