@@ -4,6 +4,8 @@ import { addUser , loginUser , getUserById , deleteUser} from './queries/queries
 import { addBook , getBookById , deleteBook, getAllBooks} from './queries/queriesLibros.js';
 import dotenv from 'dotenv';
 import { authenticateJWT , checkAdmin } from './middlewares/middleware.js';
+import { newOrder } from './queries/pedidos.js';
+
 
 dotenv.config();
 const app = express();
@@ -177,5 +179,23 @@ app.delete('/libros/:id', authenticateJWT, checkAdmin, async (req, res) => {
   } catch (error) {
     console.error('Error al eliminar libro:', error);
     res.status(500).json({ message: 'Error interno del servidor', error: error.message });
+  }
+});
+
+// ---------------------------------------------------------------------------------------------------------------
+
+app.post('/pedidos', authenticateJWT, async (req, res) => {
+  const { monto_total, libros } = req.body; 
+  const usuario_id = req.user.id_usuarios;
+
+  try {
+    const nuevoPedido = await newOrder(monto_total, usuario_id, libros);
+    res.status(201).json({
+      message: 'Pedido agregado con éxito',
+      pedido: nuevoPedido
+    });
+  } catch (error) {
+    console.error('Error al crear pedido:', error.message);
+    res.status(500).json({ error: 'Error al crear el pedido.' });
   }
 });
