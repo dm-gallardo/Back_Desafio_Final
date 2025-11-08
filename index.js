@@ -4,14 +4,13 @@ import { addUser , loginUser , getUserById , deleteUser} from './queries/queries
 import { addBook , getBookById , deleteBook, getAllBooks} from './queries/queriesLibros.js';
 import dotenv from 'dotenv';
 import { authenticateJWT , checkAdmin } from './middlewares/middleware.js';
-import { newOrder } from './queries/pedidos.js';
-
+import { newOrder , getOrderById , getAllOrders, getOrderByUser, deleteOrder} from './queries/pedidos.js';
 
 dotenv.config();
 const app = express();
 const PORT = 3000;
 
-// Configurar CORS y el middleware para parsear JSON no se le agrega ruta a mi cors ya que tengo varios dominios locales y me da error si le agrego una ruta
+// falta la configuracion de el cors
 
 app.use(cors());
 app.use(express.json());
@@ -194,8 +193,77 @@ app.post('/pedidos', authenticateJWT, async (req, res) => {
       message: 'Pedido agregado con éxito',
       pedido: nuevoPedido
     });
-  } catch (error) {
+  } catch (error) {n
     console.error('Error al crear pedido:', error.message);
     res.status(500).json({ error: 'Error al crear el pedido.' });
   }
 });
+
+
+// solo administradores pueden ver todos los pedidos
+
+app.get('/pedidos', authenticateJWT, checkAdmin, async (req, res) => {
+    try {
+        const books = await getAllOrders();
+        res.status(200).json(books);
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+});
+
+
+
+app.get('/pedidos/:id', authenticateJWT, async (req, res) => {
+    const { id } = req.params;
+    if (isNaN(id)) {
+      return res.status(400).json({ message: 'ID inválido' });
+    }
+
+    try {
+        const order = await getOrderById(id);
+        if (!order) {
+            return res.status(404).json({ message: 'pedido no encontrado' });
+        }
+
+        res.status(200).json(order);
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+});
+
+app.get('/pedidosUsuario/:id', authenticateJWT, async (req, res) => {
+    const { id } = req.params;
+    if (isNaN(id)) {
+      return res.status(400).json({ message: 'ID inválido' });
+    }
+
+    try {
+        const order = await getOrderByUser(id);
+        if (!order) {
+            return res.status(404).json({ message: 'pedido no encontrado' });
+        }
+
+        res.status(200).json(order);
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+});
+
+app.delete('/pedidos/:id', authenticateJWT, checkAdmin, async (req, res) => {
+  const { id } = req.params;
+  try {
+    if (isNaN(id)) {
+      return res.status(400).json({ message: 'ID de pedido inválido' });
+    }
+    const result = await deleteOrder(id);
+    if (result === 0) {
+      return res.status(404).json({ message: 'Pedido no encontrado' });
+    }
+    res.status(200).json({ message: 'Pedido eliminado con éxito' });
+  } catch (error) {
+    console.error('Error al eliminar el pedido:', error);
+    res.status(500).json({ message: 'Error interno del servidor', error: error.message });
+  }
+});
+
+export default app;

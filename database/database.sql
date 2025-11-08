@@ -25,7 +25,7 @@ CREATE TABLE libros (
   descripcion VARCHAR(2500),
   precio DECIMAL(15, 2),
   url_img VARCHAR(1000),
-  estado BOOLEAN,
+  disponibilidad BOOLEAN,
   usuario_id INT NOT NULL,
   FOREIGN KEY (usuario_id) REFERENCES usuarios(id_usuarios) ON DELETE CASCADE
 );

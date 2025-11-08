@@ -1,25 +1,5 @@
 import { pool } from '../database/pool.js';
 
-// CREATE TABLE pedido (
-//   id_pedido SERIAL PRIMARY KEY,
-//   fecha_pedido DATE,
-//   estado BOOLEAN DEFAULT false,
-//   monto_total DECIMAL(20, 2),
-//   usuario_id INT NOT NULL,
-//   FOREIGN KEY (usuario_id) REFERENCES usuarios(id_usuarios)
-// );
-
-// CREATE TABLE pedidos_libros (
-//   id_pedido_libro SERIAL PRIMARY KEY,
-//   pedido_id INT NOT NULL,
-//   libro_id INT NOT NULL,
-//   cantidad INT,
-//   precio_unitario DECIMAL(15, 2),
-//   FOREIGN KEY (pedido_id) REFERENCES pedidos(id_pedido) ON DELETE CASCADE,
-//   FOREIGN KEY (libro_id) REFERENCES libros(id_libros) ON DELETE CASCADE
-// );
-
-
 const newOrder = async (monto_total, usuario_id, libros, estado = false) => {
   try {
     const queryPedido = `INSERT INTO pedidos (fecha_pedido, estado, monto_total, usuario_id)VALUES (NOW(), $1, $2, $3) RETURNING id_pedido;`;
@@ -42,4 +22,61 @@ const newOrder = async (monto_total, usuario_id, libros, estado = false) => {
   }
 };
 
-export { newOrder };
+//funcion para traer todos los pedidos
+
+const getAllOrders = async () => {
+    try {
+        const query = 'SELECT * FROM pedidos ORDER BY id_pedido DESC';
+        const result = await pool.query(query);
+        return result.rows;
+    } catch (error) {
+        throw new Error('Error al obtener libros: ' + error.message);
+    }
+};
+
+//te devuelve un pedido por id con el pedido de sus libros
+
+const getOrderById = async (id) => {
+  try {
+    const queryPedido = 'SELECT * FROM pedidos WHERE id_pedido = $1';
+    const queryLibros = 'SELECT * FROM pedidos_libros WHERE pedido_id = $1';
+
+    const resultPedido = await pool.query(queryPedido, [id]);
+
+    if (resultPedido.rows.length === 0) {
+      return null;
+    }
+    const resultLibros = await pool.query(queryLibros, [id]);
+
+    return {
+      pedido: resultPedido.rows[0],
+      libros: resultLibros.rows
+    };
+
+  } catch (error) {
+    throw new Error('Error al obtener el pedido: ' + error.message);
+  }
+};
+
+const getOrderByUser = async (id) => {
+  try {
+    const query = 'SELECT * FROM pedidos WHERE usuario_id = $1 ORDER BY id_pedido DESC';
+    const result = await pool.query(query, [id]);
+    return result.rows;
+  } catch (error) {
+    throw new Error('Error al obtener pedidos del usuario: ' + error.message);
+  }
+};
+
+const deleteOrder = async (id_pedido) => {
+    const query = 'DELETE FROM pedidos WHERE id_pedido = $1';
+    const values = [id_pedido];
+    try {
+        const result = await pool.query(query, values);
+        return result.rowCount;
+    } catch (error) {
+        throw new Error('Error al eliminar el pedido: ' + error.message);
+    }
+};
+
+export { newOrder, getOrderById, getAllOrders, getOrderByUser, deleteOrder };
