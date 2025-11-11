@@ -14,8 +14,8 @@ const addUser = async (email, password, nombre) => {
 
     // Verificar si el correo electrónico ya está registrado se agrega esto por que estaba registrando usuarios con el mismo email
 
-    const checkEmailQuery = 'SELECT * FROM usuarios WHERE email = $1';
     try {
+        const checkEmailQuery = 'SELECT * FROM usuarios WHERE email = $1';
         const result = await pool.query(checkEmailQuery, [email]);
 
         // verificacion de correo
@@ -33,9 +33,7 @@ const addUser = async (email, password, nombre) => {
         const insertUserQuery = 'INSERT INTO usuarios (email, password, nombre) VALUES ($1, $2, $3)';
         const values = [email, hashedPassword, nombre];
         await pool.query(insertUserQuery, values);
-
-        // console.log('Usuario agregado con éxito');
-
+        return rows[0];
     } catch (error) {
         throw new Error('Error al agregar usuario: ' + error.message);
     }
