@@ -2,21 +2,6 @@ import { pool } from '../database/pool.js';
 
 // Función para agregar un libro
 
-// CREATE TABLE libros (
-//   id_libros SERIAL PRIMARY KEY,
-//   titulo VARCHAR(250),
-//   autor VARCHAR(250),
-//   editorial VARCHAR(250),
-//   anio_publicacion DATE,
-//   genero VARCHAR(250),
-//   descripcion VARCHAR(2500),
-//   precio DECIMAL(15, 2),
-//   url_img VARCHAR(1000),
-//   estado BOOLEAN,
-//   usuario_id INT NOT NULL,
-//   FOREIGN KEY (usuario_id) REFERENCES usuarios(id_usuarios) ON DELETE CASCADE
-// );
-
 //verificar si vamos a trabajar con el boolean estado al agregar libros
 
 const addBook = async (titulo, autor, editorial, anio_publicacion, genero, descripcion, precio, url_img, usuario_id) => {
