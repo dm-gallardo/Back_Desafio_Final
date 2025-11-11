@@ -1,12 +1,11 @@
-import { Pool } from 'pg';
+import pg from 'pg'
 
-const pool = new Pool({
-  host: 'localhost',
-  user: 'postgres',
-  password: '12345',
-  database: 'libreria',
-  port: 5432,
-  allowExitOnIdle: true,
-});
+const pool = new pg.Pool({
+  host: process.env.DB_HOST,
+  port: process.env.DB_PORT,
+  user: process.env.DB_USER,
+  password: process.env.DB_PASSWORD,
+  database: process.env.DB_NAME,
+})
 
-export { pool };
+export default pool
