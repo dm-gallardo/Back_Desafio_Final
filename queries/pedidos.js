@@ -1,82 +1,109 @@
 import { pool } from '../database/pool.js';
+import { supabase } from '../supabaseClient.js';
 
-const newOrder = async (monto_total, usuario_id, libros, estado = false) => {
+const newOrder = async (monto_total, usuario_id, libros = [], estado = false) => {
   try {
-    const queryPedido = `INSERT INTO pedidos (fecha_pedido, estado, monto_total, usuario_id)VALUES (NOW(), $1, $2, $3) RETURNING id_pedido;`;
+    const { data: pedido, error: pedidoError } = await supabase
+      .from('pedidos')
+      .insert([
+        {
+          fecha_pedido: new Date().toISOString().split('T')[0], // formato YYYY-MM-DD
+          estado,
+          monto_total,
+          usuario_id,
+        },
+      ])
+      .select('id_pedido')
+      .maybeSingle();
 
-    const pedidoValues = [estado, monto_total, usuario_id];
-    const pedidoResult = await pool.query(queryPedido, pedidoValues);
-    const pedidoId = pedidoResult.rows[0].id_pedido;
+    if (pedidoError) throw pedidoError;
+    if (!pedido) throw new Error('No se pudo crear el pedido');
 
-    const queryLibro = `INSERT INTO pedidos_libros (pedido_id, libro_id, cantidad, precio_unitario) VALUES ($1, $2, $3, $4);`;
+    const pedidoId = pedido.id_pedido;
 
     for (const libro of libros) {
-      const values = [pedidoId, libro.libro_id, libro.cantidad, libro.precio_unitario];
-      await pool.query(queryLibro, values);
+      const { error: libroError } = await supabase.from('pedidos_libros').insert([
+        {
+          pedido_id: pedidoId,
+          libro_id: libro.libro_id,
+          cantidad: libro.cantidad,
+          precio_unitario: libro.precio_unitario,
+        },
+      ]);
+      if (libroError) throw libroError;
     }
 
     return { id_pedido: pedidoId, mensaje: 'Pedido creado correctamente' };
-
   } catch (error) {
     throw new Error('Error al crear el pedido: ' + error.message);
   }
 };
 
-//funcion para traer todos los pedidos
-
 const getAllOrders = async () => {
-    try {
-        const query = 'SELECT * FROM pedidos ORDER BY id_pedido DESC';
-        const result = await pool.query(query);
-        return result.rows;
-    } catch (error) {
-        throw new Error('Error al obtener libros: ' + error.message);
-    }
+  try {
+    const { data, error } = await supabase
+      .from('pedidos')
+      .select('*')
+      .order('id_pedido', { ascending: false });
+
+    if (error) throw error;
+    return data;
+  } catch (error) {
+    throw new Error('Error al obtener pedidos: ' + error.message);
+  }
 };
 
-//te devuelve un pedido por id con el pedido de sus libros
-
-const getOrderById = async (id) => {
+const getOrderById = async (id_pedido) => {
   try {
-    const queryPedido = 'SELECT * FROM pedidos WHERE id_pedido = $1';
-    const queryLibros = 'SELECT * FROM pedidos_libros WHERE pedido_id = $1';
+    const { data: pedido, error: pedidoError } = await supabase
+      .from('pedidos')
+      .select('*')
+      .eq('id_pedido', id_pedido)
+      .maybeSingle();
 
-    const resultPedido = await pool.query(queryPedido, [id]);
+    if (pedidoError) throw pedidoError;
+    if (!pedido) return null;
 
-    if (resultPedido.rows.length === 0) {
-      return null;
-    }
-    const resultLibros = await pool.query(queryLibros, [id]);
+    const { data: libros, error: librosError } = await supabase
+      .from('pedidos_libros')
+      .select('*')
+      .eq('pedido_id', id_pedido);
 
-    return {
-      pedido: resultPedido.rows[0],
-      libros: resultLibros.rows
-    };
+    if (librosError) throw librosError;
 
+    return { pedido, libros };
   } catch (error) {
     throw new Error('Error al obtener el pedido: ' + error.message);
   }
 };
 
-const getOrderByUser = async (id) => {
+const getOrderByUser = async (usuario_id) => {
   try {
-    const query = 'SELECT * FROM pedidos WHERE usuario_id = $1 ORDER BY id_pedido DESC';
-    const result = await pool.query(query, [id]);
-    return result.rows;
+    const { data, error } = await supabase
+      .from('pedidos')
+      .select('*')
+      .eq('usuario_id', usuario_id)
+      .order('id_pedido', { ascending: false });
+
+    if (error) throw error;
+    return data;
   } catch (error) {
     throw new Error('Error al obtener pedidos del usuario: ' + error.message);
   }
 };
 
 const deleteOrder = async (id_pedido) => {
-    const query = 'DELETE FROM pedidos WHERE id_pedido = $1';
-    const values = [id_pedido];
-    try {
-        const result = await pool.query(query, values);
-        return result.rowCount;
-    } catch (error) {
-        throw new Error('Error al eliminar el pedido: ' + error.message);
-    }
+  try {
+    const { error, count } = await supabase
+      .from('pedidos')
+      .delete({ count: 'exact' })
+      .eq('id_pedido', id_pedido);
+
+    if (error) throw error;
+    return count;
+  } catch (error) {
+    throw new Error('Error al eliminar el pedido: ' + error.message);
+  }
 };
 
-export { newOrder, getOrderById, getAllOrders, getOrderByUser, deleteOrder };
+export { newOrder, getAllOrders, getOrderById, getOrderByUser, deleteOrder };
