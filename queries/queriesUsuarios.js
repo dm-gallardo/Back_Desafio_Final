@@ -1,42 +1,56 @@
 import { pool } from '../database/pool.js';
 import jwt from 'jsonwebtoken';
 import bcrypt from 'bcryptjs';
+import { supabase } from '../supabaseClient.js';
 
 // Función para agregar un usuario
 
 const addUser = async (email, password, nombre) => {
+  if (!email || !password || !nombre) {
+    throw new Error('Todos los campos son requeridos');
+  }
 
-    // Validar que se proporcionen todos los campos requeridos
+  try {
+    // 1️⃣ Verificar si el correo ya existe
+    const { data: existingUser, error: fetchError } = await supabase
+      .from('usuarios')
+      .select('email')
+      .eq('email', email)
+      .single();
 
-    if (!email || !password || !nombre) {
-        throw new Error('Todos los campos son requeridos');
+    if (fetchError && fetchError.code !== 'PGRST116') {
+      throw fetchError;
     }
 
-    // Verificar si el correo electrónico ya está registrado se agrega esto por que estaba registrando usuarios con el mismo email
+    if (existingUser) {
+      throw new Error('El correo electrónico ya está registrado en la DB');
+    }
 
-    try {
-        const checkEmailQuery = 'SELECT * FROM usuarios WHERE email = $1';
-        const result = await pool.query(checkEmailQuery, [email]);
+    // 2️⃣ Hashear la contraseña
+    const saltRounds = 10;
+    const hashedPassword = await bcrypt.hash(password, saltRounds);
 
-        // verificacion de correo
-        if (result.rows.length > 0) {
-            throw new Error('El correo electrónico ya está registrado');
+    // 3️⃣ Insertar el nuevo usuario
+    const { data: newUser, error: insertError } = await supabase
+      .from('usuarios')
+      .insert([
+        {
+          email,
+          password: hashedPassword,
+          nombre
         }
+      ])
+      .select('*')
+      .single();
 
-        // Hasheo de contraseña
+    if (insertError) throw insertError;
 
-        const saltRounds = 10;
-        const hashedPassword = await bcrypt.hash(password, saltRounds);
+    // 4️⃣ Devolver el usuario creado
+    return newUser;
 
-        // Insertar el nuevo usuario en la base de datos en caso de que no exista el email
-
-        const insertUserQuery = 'INSERT INTO usuarios (email, password, nombre) VALUES ($1, $2, $3)';
-        const values = [email, hashedPassword, nombre];
-        await pool.query(insertUserQuery, values);
-        return rows[0];
-    } catch (error) {
-        throw new Error('Error al agregar usuario: ' + error.message);
-    }
+  } catch (error) {
+    throw new Error('Error al agregar usuario: ' + error.message);
+  }
 };
 
 //-------------------------------------------------------------------------------------------------------------
