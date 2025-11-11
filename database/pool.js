@@ -8,6 +8,7 @@ const pool = new Pool({
     rejectUnauthorized: false,
   },
   allowExitOnIdle: true,
+  family: 4,
 });
 
 export { pool };
