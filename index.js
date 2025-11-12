@@ -74,11 +74,13 @@ app.get('/usuarios', authenticateJWT, async (req, res) => {
 
 app.get('/usuarios/:id', authenticateJWT, async (req, res) => {
   const userId = req.params.id;
-  const loggedUserId = req.user.userId;
+  const loggedUserId = req.user.id;
 
+  console.log('userId:', userId);
+  console.log('loggedUserId:', loggedUserId);
 
   //validar que el userId del token sea igual al userId de la ruta
-  if (userId !== loggedUserId) {
+  if (parseInt(userId) !== parseInt(loggedUserId)) {
     return res.status(403).json({ message: 'No tienes permiso para acceder a este usuario' }); 
   }
 

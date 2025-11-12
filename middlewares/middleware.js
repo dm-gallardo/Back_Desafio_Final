@@ -1,34 +1,29 @@
 import jwt from 'jsonwebtoken';
 import { pool } from '../database/pool.js';
-import { supabase } from '../supabaseClient.js';
 
 //middleware para verificar el JWT
 
-const authenticateJWT = async (req, res, next) => {
-  try {
-    const authHeader = req.headers['authorization'];
-    if (!authHeader)
-      return res.status(403).json({ message: 'Token requerido' });
+const authenticateJWT = (req, res, next) => {
 
-    const token = authHeader.startsWith('Bearer ')
-      ? authHeader.slice(7)
-      : authHeader;
+  const authHeader = req.headers['authorization'];
 
-    // Verificar token con Supabase
-    const { data, error } = await supabase.auth.getUser(token);
+  if (!authHeader) {
+    return res.status(403).json({ message: 'Token requerido' });
+  }
 
-    if (error || !data?.user) {
-      return res.status(403).json({ message: 'Token no válido', error: error?.message });
+  const token = authHeader.startsWith('Bearer ')
+    ? authHeader.slice(7)
+    : authHeader;
+
+    jwt.verify(token, process.env.JWT_SECRET, (err, decoded) => {
+    if (err) {
+      return res.status(403).json({ message: 'Token no válido', error: err.message });
     }
 
-    // Guardamos el usuario en la request
-    req.user = data.user;
-
+    req.user = decoded;
     next();
-  } catch (err) {
-    console.error('Error en authenticateSupabase:', err);
-    return res.status(500).json({ message: 'Error interno en autenticación', error: err.message });
-  }
+  });
+
 };
 
 
@@ -36,30 +31,29 @@ const authenticateJWT = async (req, res, next) => {
 
 const checkAdmin = async (req, res, next) => {
   try {
-    const userId = req.user?.id; // ID del usuario autenticado desde Supabase
+    const { id_usuarios } = req.user; // viene del token
 
-    if (!userId) {
+    if (!id_usuarios) {
       return res.status(400).json({ message: 'Token inválido: falta el ID del usuario' });
     }
 
-    const { data: usuario, error } = await supabase
-      .from('usuarios')
-      .select('admin')
-      .eq('id_usuarios', userId)
-      .maybeSingle();
+    const result = await pool.query(
+      'SELECT admin FROM usuarios WHERE id_usuarios = $1',
+      [id_usuarios]
+    );
 
-    if (error) throw error;
-    if (!usuario) {
+    if (result.rowCount === 0) {
       return res.status(404).json({ message: 'Usuario no encontrado' });
     }
 
-    if (!usuario.admin) {
-      return res.status(403).json({
-        message: 'Acceso denegado: se requieren privilegios de administrador',
-      });
+    const { admin } = result.rows[0];
+
+    if (!admin) {
+      return res.status(403).json({ message: 'Acceso denegado: se requieren privilegios de administrador' });
     }
 
     next();
+
   } catch (err) {
     console.error('Error en checkAdmin:', err);
     return res.status(500).json({ message: 'Error interno en autenticación', error: err.message });
