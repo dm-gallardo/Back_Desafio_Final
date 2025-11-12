@@ -4,7 +4,7 @@ import { supabase } from '../supabaseClient.js';
 
 //middleware para verificar el JWT
 
-authenticateJWT = async (req, res, next) => {
+const authenticateJWT = async (req, res, next) => {
   try {
     const authHeader = req.headers['authorization'];
     if (!authHeader)
@@ -34,7 +34,7 @@ authenticateJWT = async (req, res, next) => {
 
 // Middleware para verificar si el usuario es admin
 
-checkAdmin = async (req, res, next) => {
+const checkAdmin = async (req, res, next) => {
   try {
     const userId = req.user?.id; // ID del usuario autenticado desde Supabase
 
