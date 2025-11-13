@@ -7,7 +7,7 @@ const newOrder = async (monto_total, usuario_id, libros = [], estado = false) =>
       .from('pedidos')
       .insert([
         {
-          fecha_pedido: new Date().toISOString().split('T')[0], // formato YYYY-MM-DD
+          fecha_pedido: new Date().toISOString().split('T')[0],
           estado,
           monto_total,
           usuario_id,

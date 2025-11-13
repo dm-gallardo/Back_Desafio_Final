@@ -20,8 +20,6 @@ app.listen(PORT, async () => {
   console.log(`Server is running on http://localhost:${PORT}`);
 });
 
-// RUTA POST
-
 app.post('/usuarios', async (req, res) => {
   const { email, password, nombre} = req.body;
   try {
@@ -32,34 +30,26 @@ app.post('/usuarios', async (req, res) => {
   }
 });
 
-// Ruta POST para login
-
 app.post('/login', async (req, res) => {
   const { email, password } = req.body;
 
   try {
-    const token = await loginUser(email, password); // Usar la función de login
+    const token = await loginUser(email, password);
     res.json({ token });
   } catch (error) {
     res.status(400).json({ error: error.message });
   }
 });
 
-// Ruta GET
-
 app.get('/usuarios', authenticateJWT, async (req, res) => {
   try {
-    const { userId } = req.user; // El userId viene del JWT
-
-    // Obtener el usuario de la base de datos por el ID
+    const { userId } = req.user;
 
     const user = await getUserById(userId);
 
     if (!user) {
       return res.status(404).json({ message: 'Usuario no encontrado' });
     }
-
-    // Responder con los datos del usuario
     res.json({
       id: user.id,
       email: user.email,
@@ -70,20 +60,12 @@ app.get('/usuarios', authenticateJWT, async (req, res) => {
   }
 });
 
-// Ruta GET por ID
-
 app.get('/usuarios/:id', authenticateJWT, async (req, res) => {
   const userId = req.params.id;
   const loggedUserId = req.user.id;
-
-  console.log('userId:', userId);
-  console.log('loggedUserId:', loggedUserId);
-
-  //validar que el userId del token sea igual al userId de la ruta
   if (parseInt(userId) !== parseInt(loggedUserId)) {
     return res.status(403).json({ message: 'No tienes permiso para acceder a este usuario' }); 
   }
-
   try {
       const user = await getUserById(userId);
       if (!user) {
@@ -94,8 +76,6 @@ app.get('/usuarios/:id', authenticateJWT, async (req, res) => {
       res.status(500).json({ message: error.message });
   }
 });
-
-// Ruta DELETE
 
 app.delete('/usuarios/:id', authenticateJWT, checkAdmin, async (req, res) => {
   const { id } = req.params;
@@ -118,9 +98,6 @@ app.delete('/usuarios/:id', authenticateJWT, checkAdmin, async (req, res) => {
     res.status(500).json({ message: 'Error interno del servidor', error: error.message });
   }
 });
-
-//-------------------------------------------------------------------------------------------------------------
-// rutas para libros
 
 app.post('/libros', authenticateJWT, checkAdmin, async (req, res) => {
     const { titulo, autor, editorial, anio_publicacion, genero, descripcion, precio, url_img } = req.body;
@@ -154,7 +131,6 @@ app.get('/libros/:id', authenticateJWT, async (req, res) => {
         if (!book) {
             return res.status(404).json({ message: 'Libro no encontrado' });
         }
-
         res.status(200).json(book);
     } catch (error) {
         res.status(500).json({ error: error.message });
@@ -168,41 +144,31 @@ app.delete('/libros/:id', authenticateJWT, checkAdmin, async (req, res) => {
     if (isNaN(id)) {
       return res.status(400).json({ message: 'ID de libro inválido' });
     }
-
     const result = await deleteBook(id);
-
     if (result === 0) {
       return res.status(404).json({ message: 'libro no encontrado' });
     }
-
     res.status(200).json({ message: 'libro eliminado con éxito' });
-
   } catch (error) {
     console.error('Error al eliminar libro:', error);
     res.status(500).json({ message: 'Error interno del servidor', error: error.message });
   }
 });
 
-// ---------------------------------------------------------------------------------------------------------------
-
 app.post('/pedidos', authenticateJWT, async (req, res) => {
-  const { monto_total, libros } = req.body; 
-  const usuario_id = req.user.id_usuarios;
-
+  const { monto_total, libros } = req.body;
+  const usuario_id = req.user.id;
   try {
     const nuevoPedido = await newOrder(monto_total, usuario_id, libros);
     res.status(201).json({
       message: 'Pedido agregado con éxito',
       pedido: nuevoPedido
     });
-  } catch (error) {n
+  } catch (error) {
     console.error('Error al crear pedido:', error.message);
     res.status(500).json({ error: 'Error al crear el pedido.' });
   }
 });
-
-
-// solo administradores pueden ver todos los pedidos
 
 app.get('/pedidos', authenticateJWT, checkAdmin, async (req, res) => {
     try {
@@ -220,13 +186,11 @@ app.get('/pedidos/:id', authenticateJWT, async (req, res) => {
     if (isNaN(id)) {
       return res.status(400).json({ message: 'ID inválido' });
     }
-
     try {
         const order = await getOrderById(id);
         if (!order) {
             return res.status(404).json({ message: 'pedido no encontrado' });
         }
-
         res.status(200).json(order);
     } catch (error) {
         res.status(500).json({ error: error.message });
@@ -238,13 +202,11 @@ app.get('/pedidosUsuario/:id', authenticateJWT, async (req, res) => {
     if (isNaN(id)) {
       return res.status(400).json({ message: 'ID inválido' });
     }
-
     try {
         const order = await getOrderByUser(id);
         if (!order) {
             return res.status(404).json({ message: 'pedido no encontrado' });
         }
-
         res.status(200).json(order);
     } catch (error) {
         res.status(500).json({ error: error.message });
@@ -263,8 +225,8 @@ app.delete('/pedidos/:id', authenticateJWT, checkAdmin, async (req, res) => {
     }
     res.status(200).json({ message: 'Pedido eliminado con éxito' });
   } catch (error) {
-    console.error('Error al eliminar el pedido:', error);
     res.status(500).json({ message: 'Error interno del servidor', error: error.message });
+    console.error('Error al eliminar pedido:', error);
   }
 });
 

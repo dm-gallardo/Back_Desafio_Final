@@ -1,8 +1,6 @@
 import jwt from 'jsonwebtoken';
 import { pool } from '../database/pool.js';
 
-//middleware para verificar el JWT
-
 const authenticateJWT = (req, res, next) => {
 
   const authHeader = req.headers['authorization'];
@@ -26,12 +24,9 @@ const authenticateJWT = (req, res, next) => {
 
 };
 
-
-// Middleware para verificar si el usuario es admin
-
 const checkAdmin = async (req, res, next) => {
   try {
-    const { id_usuarios } = req.user; // viene del token
+    const { id_usuarios } = req.user;
 
     if (!id_usuarios) {
       return res.status(400).json({ message: 'Token inválido: falta el ID del usuario' });

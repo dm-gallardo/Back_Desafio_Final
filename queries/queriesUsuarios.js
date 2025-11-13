@@ -3,53 +3,36 @@ import jwt from 'jsonwebtoken';
 import bcrypt from 'bcryptjs';
 import { supabase } from '../supabaseClient.js';
 
-// Función para agregar un usuario
-
 const addUser = async (email, password, nombre) => {
   if (!email || !password || !nombre) {
     throw new Error('Todos los campos son requeridos');
   }
-
   try {
-    const { data: existingUser, error: fetchError } = await supabase
-      .from('usuarios')
-      .select('email')
-      .eq('email', email)
-      .single();
-
-    if (fetchError && fetchError.code !== 'PGRST116') {
-      throw fetchError;
-    }
-
-    if (existingUser) {
-      throw new Error('El correo electrónico ya está registrado en la DB');
-    }
-
-    const saltRounds = 10;
-    const hashedPassword = await bcrypt.hash(password, saltRounds);
+    const { data: authData, error: authError } = await supabase.auth.signUp({
+      email,
+      password,
+    });
+    if (authError) throw authError;
+    const authUser = authData.user;
+    if (!authUser) throw new Error('No se pudo crear el usuario en Supabase Auth');
 
     const { data: newUser, error: insertError } = await supabase
       .from('usuarios')
       .insert([
         {
+          auth_user_id: authUser.id,
           email,
-          password: hashedPassword,
-          nombre
-        }
+          nombre,
+        },
       ])
       .select('*')
       .single();
-
     if (insertError) throw insertError;
-
+    return { mensaje: 'Usuario creado correctamente', usuario: newUser };
   } catch (error) {
     throw new Error('Error al agregar usuario: ' + error.message);
   }
 };
-
-//-------------------------------------------------------------------------------------------------------------
-
-// Función para autenticar un usuario y generar un token JWT
 
 const loginUser = async (email, password) => {
   if (!email || !password) {
@@ -62,7 +45,6 @@ const loginUser = async (email, password) => {
       .select('*')
       .eq('email', email)
       .maybeSingle();
-
     if (fetchError) throw fetchError;
     if (!user) {
       throw new Error('Usuario no encontrado');
@@ -89,9 +71,6 @@ const loginUser = async (email, password) => {
   }
 };
 
-//-------------------------------------------------------------------------------------------------------------
-// Función rapida para obtener los datos del usuario por su ID
-
 const getUserById = async (userId) => {
   try {
     const { data: user, error } = await supabase
@@ -111,8 +90,6 @@ const getUserById = async (userId) => {
     throw new Error('Error al obtener los datos del usuario: ' + error.message);
   }
 };
-
-//-------------------------------------------------------------------------------------------------------------
 
 const deleteUser = async (id_usuarios) => {
   try {
