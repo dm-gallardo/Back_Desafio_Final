@@ -1,5 +1,6 @@
 import jwt from 'jsonwebtoken';
 import { pool } from '../database/pool.js';
+import { supabase } from '../supabaseClient.js';
 
 const authenticateJWT = (req, res, next) => {
 
@@ -26,29 +27,33 @@ const authenticateJWT = (req, res, next) => {
 
 const checkAdmin = async (req, res, next) => {
   try {
-    const { id_usuarios } = req.user;
+    // Toma el ID del token, sea 'id_usuarios' o 'id'
+    const id_usuarios = req.user.id_usuarios || req.user.id;
 
     if (!id_usuarios) {
       return res.status(400).json({ message: 'Token inválido: falta el ID del usuario' });
     }
 
-    const result = await pool.query(
-      'SELECT admin FROM usuarios WHERE id_usuarios = $1',
-      [id_usuarios]
-    );
+    const { data, error } = await supabase
+      .from('usuarios')
+      .select('admin')
+      .eq('id_usuarios', id_usuarios)
+      .maybeSingle();
 
-    if (result.rowCount === 0) {
+    if (error) {
+      console.error('Error consultando Supabase:', error);
+      return res.status(500).json({ message: 'Error al consultar Supabase', error: error.message });
+    }
+
+    if (!data) {
       return res.status(404).json({ message: 'Usuario no encontrado' });
     }
 
-    const { admin } = result.rows[0];
-
-    if (!admin) {
+    if (!data.admin) {
       return res.status(403).json({ message: 'Acceso denegado: se requieren privilegios de administrador' });
     }
 
     next();
-
   } catch (err) {
     console.error('Error en checkAdmin:', err);
     return res.status(500).json({ message: 'Error interno en autenticación', error: err.message });

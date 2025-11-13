@@ -6,6 +6,7 @@ import dotenv from 'dotenv';
 import { authenticateJWT , checkAdmin } from './middlewares/middleware.js';
 import { newOrder , getOrderById , getAllOrders, getOrderByUser, deleteOrder} from './queries/pedidos.js';
 import 'dotenv/config';
+import { supabase } from './supabaseClient.js';
 
 dotenv.config();
 const app = express();
@@ -100,14 +101,21 @@ app.delete('/usuarios/:id', authenticateJWT, checkAdmin, async (req, res) => {
 });
 
 app.post('/libros', authenticateJWT, checkAdmin, async (req, res) => {
-    const { titulo, autor, editorial, anio_publicacion, genero, descripcion, precio, url_img } = req.body;
-    const usuario_id = req.user.id_usuarios;
-    try {
-        await addBook(titulo, autor, editorial, anio_publicacion, genero, descripcion, precio, url_img, usuario_id);
-        res.status(201).json({ message: 'Libro agregado con éxito' });
-    } catch (error) {
-        res.status(400).json({ error: error.message });
+  const { titulo, autor, editorial, anio_publicacion, genero, descripcion, precio, url_img} = req.body;
+  const usuario_id = req.user.id_usuarios || req.user.id;
+  try {
+    const { error } = await supabase
+      .from('libros')
+      .insert([{ titulo, autor, editorial, anio_publicacion, genero, descripcion, precio, url_img, usuario_id }]);
+    if (error) {
+      console.error('Error al insertar libro:', error);
+      return res.status(400).json({ error: error.message });
     }
+    res.status(201).json({ message: 'Libro agregado con éxito' });
+  } catch (error) {
+    console.error('Error en /libros:', error);
+    res.status(500).json({ error: 'Error interno del servidor' });
+  }
 });
 
 app.get('/libros', authenticateJWT, async (req, res) => {
