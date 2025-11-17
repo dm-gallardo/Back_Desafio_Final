@@ -3,32 +3,34 @@ import jwt from 'jsonwebtoken';
 import bcrypt from 'bcryptjs';
 import { supabase } from '../supabaseClient.js';
 
-const addUser = async (email, password, nombre) => {
-  if (!email || !password || !nombre) {
+const addUser = async (email, password, nombre, apellido) => {
+  if (!email || !password || !nombre || !nombre) {
     throw new Error('Todos los campos son requeridos');
   }
+
   try {
-    const { data: authData, error: authError } = await supabase.auth.signUp({
-      email,
-      password,
-    });
-    if (authError) throw authError;
-    const authUser = authData.user;
-    if (!authUser) throw new Error('No se pudo crear el usuario en Supabase Auth');
+    const hashedPassword = await bcrypt.hash(password, 10);
 
     const { data: newUser, error: insertError } = await supabase
       .from('usuarios')
       .insert([
         {
-          auth_user_id: authUser.id,
           email,
+          password: hashedPassword,
           nombre,
-        },
+          apellido
+        }
       ])
       .select('*')
       .single();
+
     if (insertError) throw insertError;
-    return { mensaje: 'Usuario creado correctamente', usuario: newUser };
+
+    return {
+      mensaje: 'Usuario creado correctamente',
+      usuario: newUser
+    };
+
   } catch (error) {
     throw new Error('Error al agregar usuario: ' + error.message);
   }
@@ -58,6 +60,7 @@ const loginUser = async (email, password) => {
         id: user.id_usuarios,
         email: user.email,
         nombre: user.nombre,
+        apellido: user.apellido,
         admin: user.admin || false,
       },
       process.env.JWT_SECRET,

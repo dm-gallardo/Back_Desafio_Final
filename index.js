@@ -22,9 +22,9 @@ app.listen(PORT, async () => {
 });
 
 app.post('/usuarios', async (req, res) => {
-  const { email, password, nombre} = req.body;
+  const { email, password, nombre, apellido} = req.body;
   try {
-    await addUser(email, password, nombre);
+    await addUser(email, password, nombre, apellido);
     res.status(201).json({ message: 'Usuario agregado con éxito' });
   } catch (error) {
     res.status(400).json({ error: error.message });
